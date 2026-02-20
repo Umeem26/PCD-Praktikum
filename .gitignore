@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Folder Upload (Sangat disarankan diignore agar server tidak penuh dengan gambar testing)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Environment variables (Jika nanti kamu pakai file .env untuk API Key)
+.env
+
+# Editor-specific (VS Code / PyCharm)
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
