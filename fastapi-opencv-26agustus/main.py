@@ -4,7 +4,7 @@ from fastapi import FastAPI, File, UploadFile, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from skimage.exposure import match_histograms  # pastikan paket scikit-image sudah terinstal
+from skimage.exposure import match_histograms
 
 import numpy as np
 import cv2
@@ -87,11 +87,17 @@ async def perform_logic_operation(
     if operation == "not":
         result_img = cv2.bitwise_not(img1)
     else:
-        if file2 is None:
+        if file2 is None or file2.filename == "":
             return HTMLResponse("Operasi AND dan XOR memerlukan dua gambar.", status_code=400)
+        
         image_data2 = await file2.read()
+        if not image_data2:
+            return HTMLResponse("Gambar kedua kosong atau tidak valid.", status_code=400)
+
         np_array2 = np.frombuffer(image_data2, np.uint8)
         img2 = cv2.imdecode(np_array2, cv2.IMREAD_COLOR)
+
+        img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
 
         if operation == "and":
             result_img = cv2.bitwise_and(img1, img2)
@@ -105,9 +111,9 @@ async def perform_logic_operation(
         "original_image_path": original_path,
         "modified_image_path": modified_path
     })
+
 @app.get("/grayscale/", response_class=HTMLResponse)
 async def grayscale_form(request: Request):
-    # Menampilkan form untuk upload gambar ke grayscale
     return templates.TemplateResponse("grayscale.html", {"request": request})
 
 @app.post("/grayscale/", response_class=HTMLResponse)
@@ -129,7 +135,6 @@ async def convert_grayscale(request: Request, file: UploadFile = File(...)):
 
 @app.get("/histogram/", response_class=HTMLResponse)
 async def histogram_form(request: Request):
-    # Menampilkan halaman untuk upload gambar untuk histogram
     return templates.TemplateResponse("histogram.html", {"request": request})
 
 @app.post("/histogram/", response_class=HTMLResponse)
@@ -138,11 +143,9 @@ async def generate_histogram(request: Request, file: UploadFile = File(...)):
     np_array = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
 
-    # Pastikan gambar berhasil diimpor
     if img is None:
         return HTMLResponse("Tidak dapat membaca gambar yang diunggah", status_code=400)
 
-    # Buat histogram grayscale dan berwarna
     gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     grayscale_histogram_path = save_histogram(gray_img, "grayscale")
 
@@ -154,11 +157,8 @@ async def generate_histogram(request: Request, file: UploadFile = File(...)):
         "color_histogram_path": color_histogram_path
     })
 
-
-
 @app.get("/equalize/", response_class=HTMLResponse)
 async def equalize_form(request: Request):
-    # Menampilkan halaman untuk upload gambar untuk equalisasi histogram
     return templates.TemplateResponse("equalize.html", {"request": request})
 
 @app.post("/equalize/", response_class=HTMLResponse)
@@ -180,34 +180,23 @@ async def equalize_histogram(request: Request, file: UploadFile = File(...)):
 
 @app.get("/specify/", response_class=HTMLResponse)
 async def specify_form(request: Request):
-    # Menampilkan halaman untuk upload gambar dan referensi untuk spesifikasi histogram
     return templates.TemplateResponse("specify.html", {"request": request})
 
 @app.post("/specify/", response_class=HTMLResponse)
 async def specify_histogram(request: Request, file: UploadFile = File(...), ref_file: UploadFile = File(...)):
-    # Baca gambar yang diunggah dan gambar referensi
     image_data = await file.read()
     ref_image_data = await ref_file.read()
 
     np_array = np.frombuffer(image_data, np.uint8)
     ref_np_array = np.frombuffer(ref_image_data, np.uint8)
-		
-		#jika ingin grayscale
-    #img = cv2.imdecode(np_array, cv2.IMREAD_GRAYSCALE)
-    #ref_img = cv2.imdecode(ref_np_array, cv2.IMREAD_GRAYSCALE)
 
-    img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)  # Membaca gambar dalam format BGR
-    ref_img = cv2.imdecode(ref_np_array, cv2.IMREAD_COLOR)  # Membaca gambar referensi dalam format BGR
-
+    img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+    ref_img = cv2.imdecode(ref_np_array, cv2.IMREAD_COLOR)
 
     if img is None or ref_img is None:
         return HTMLResponse("Gambar utama atau gambar referensi tidak dapat dibaca.", status_code=400)
 
-    # Spesifikasi histogram menggunakan match_histograms dari skimage #grayscale
-    #specified_img = match_histograms(img, ref_img, multichannel=False)
-		    # Spesifikasi histogram menggunakan match_histograms dari skimage untuk gambar berwarna
     specified_img = match_histograms(img, ref_img, channel_axis=-1)
-    # Konversi kembali ke format uint8 jika diperlukan
     specified_img = np.clip(specified_img, 0, 255).astype('uint8')
 
     original_path = save_image(img, "original")
@@ -260,4 +249,3 @@ def save_color_histogram(image):
     plt.savefig(color_histogram_path)
     plt.close()
     return f"/{color_histogram_path}"
-
