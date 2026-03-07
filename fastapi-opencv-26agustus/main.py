@@ -226,6 +226,100 @@ async def calculate_statistics(request: Request, file: UploadFile = File(...)):
         "image_path": image_path
     })
 
+# --- TAMBAHAN UNTUK MODUL FILTERING SPASIAL ---
+@app.get("/filtering/", response_class=HTMLResponse)
+async def filtering_form(request: Request):
+    return templates.TemplateResponse("filtering.html", {"request": request})
+
+@app.post("/filtering/", response_class=HTMLResponse)
+async def apply_filtering(
+    request: Request,
+    file: UploadFile = File(...),
+    filter_type: str = Form(...)
+):
+    image_data = await file.read()
+    np_array = np.frombuffer(image_data, np.uint8)
+    img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+    original_path = save_image(img, "original")
+
+    if filter_type == "conv_average":
+        kernel = np.ones((3, 3), np.float32) / 9
+        result_img = cv2.filter2D(img, -1, kernel)
+    elif filter_type == "conv_sharpen":
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+        result_img = cv2.filter2D(img, -1, kernel)
+    elif filter_type == "conv_edge":
+        kernel = np.array([[-1, -1, -1], [-1, 8, -1], [-1, -1, -1]])
+        result_img = cv2.filter2D(img, -1, kernel)
+    elif filter_type == "zero_padding":
+        result_img = cv2.copyMakeBorder(img, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+    elif filter_type == "filter_low":
+        result_img = cv2.GaussianBlur(img, (5, 5), 0)
+    elif filter_type == "filter_high":
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+        result_img = cv2.filter2D(img, -1, kernel)
+    elif filter_type == "filter_band":
+        low_pass = cv2.GaussianBlur(img, (9, 9), 0)
+        high_pass = img - low_pass
+        result_img = low_pass + high_pass
+    else:
+        result_img = img
+
+    modified_path = save_image(result_img, "filtered")
+
+    return templates.TemplateResponse("result.html", {
+        "request": request,
+        "original_image_path": original_path,
+        "modified_image_path": modified_path
+    })
+
+# --- TAMBAHAN UNTUK MODUL TRANSFORMASI FOURIER ---
+@app.get("/fourier/", response_class=HTMLResponse)
+async def fourier_form(request: Request):
+    return templates.TemplateResponse("fourier.html", {"request": request})
+
+@app.post("/fourier/", response_class=HTMLResponse)
+async def apply_fourier(
+    request: Request,
+    file: UploadFile = File(...),
+    operation: str = Form(...)
+):
+    image_data = await file.read()
+    np_array = np.frombuffer(image_data, np.uint8)
+    img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+    original_path = save_image(img, "original")
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    f = np.fft.fft2(gray)
+    fshift = np.fft.fftshift(f)
+
+    if operation == "transform":
+        # Mencegah log(0) dengan menambahkan nilai sangat kecil
+        magnitude_spectrum = 20 * np.log(np.abs(fshift) + 1e-8)
+        # Normalisasi ke 0-255 agar bisa disimpan sebagai citra
+        result_img = cv2.normalize(magnitude_spectrum, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    elif operation == "reduce_noise":
+        rows, cols = gray.shape
+        crow, ccol = rows // 2, cols // 2
+        mask = np.ones((rows, cols), np.uint8)
+        r = 30
+        mask[crow-r:crow+r, ccol-r:ccol+r] = 0
+        fshift = fshift * mask
+        f_ishift = np.fft.ifftshift(fshift)
+        img_back = np.fft.ifft2(f_ishift)
+        img_back = np.abs(img_back)
+        result_img = cv2.normalize(img_back, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    else:
+        result_img = gray
+
+    modified_path = save_image(result_img, "fourier")
+
+    return templates.TemplateResponse("result.html", {
+        "request": request,
+        "original_image_path": original_path,
+        "modified_image_path": modified_path
+    })
+
 def save_image(image, prefix):
     filename = f"{prefix}_{uuid4()}.png"
     path = os.path.join("static/uploads", filename)

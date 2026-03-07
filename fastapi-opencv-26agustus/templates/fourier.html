@@ -1,0 +1,37 @@
+{% extends "base.html" %} {% block title %}Transformasi Fourier{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="text-center">Domain Frekuensi: Transformasi Fourier</h2>
+  <form
+    action="/fourier/"
+    enctype="multipart/form-data"
+    method="post"
+    class="mt-4"
+  >
+    <div class="mb-3">
+      <label for="file">Pilih Gambar (Idealnya gambar yang memiliki pola garis/noise):</label>
+      <input
+        name="file"
+        type="file"
+        accept="image/*"
+        class="form-control"
+        required
+      />
+    </div>
+    <div class="mb-3">
+      <label for="operation">Pilih Operasi Fourier:</label>
+      <select name="operation" class="form-select" required>
+        <option value="transform">Lihat Magnitude Spectrum (Visualisasi Gelombang)</option>
+        <option value="reduce_noise">Reduksi Noise Periodik (Bersihkan Pola)</option>
+      </select>
+    </div>
+    <div class="text-center">
+      <input
+        type="submit"
+        value="Proses Frekuensi"
+        class="btn btn-success"
+      />
+    </div>
+  </form>
+</div>
+{% endblock %}

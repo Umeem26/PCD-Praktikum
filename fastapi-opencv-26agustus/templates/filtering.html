@@ -1,0 +1,42 @@
+{% extends "base.html" %} {% block title %}Pemfilteran Spasial Citra{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="text-center">Pemfilteran Spasial Citra (Konvolusi & Filter)</h2>
+  <form
+    action="/filtering/"
+    enctype="multipart/form-data"
+    method="post"
+    class="mt-4"
+  >
+    <div class="mb-3">
+      <label for="file">Pilih Gambar yang Akan Difilter:</label>
+      <input
+        name="file"
+        type="file"
+        accept="image/*"
+        class="form-control"
+        required
+      />
+    </div>
+    <div class="mb-3">
+      <label for="filter_type">Pilih Jenis Pemfilteran:</label>
+      <select name="filter_type" class="form-select" required>
+        <option value="conv_average">Konvolusi - Average (Blur)</option>
+        <option value="conv_sharpen">Konvolusi - Sharpen (Pertajam)</option>
+        <option value="conv_edge">Konvolusi - Edge Detection (Deteksi Tepi)</option>
+        <option value="zero_padding">Zero Padding (Bingkai Hitam)</option>
+        <option value="filter_low">Low-pass Filter (Gaussian Blur)</option>
+        <option value="filter_high">High-pass Filter</option>
+        <option value="filter_band">Band-pass Filter</option>
+      </select>
+    </div>
+    <div class="text-center">
+      <input
+        type="submit"
+        value="Terapkan Filter"
+        class="btn btn-success"
+      />
+    </div>
+  </form>
+</div>
+{% endblock %}
